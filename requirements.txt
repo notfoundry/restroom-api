@@ -1,0 +1,4 @@
+googlemaps
+django
+djangorestframework
+drf-spectacular
