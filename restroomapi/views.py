@@ -11,6 +11,18 @@ import googlemaps
 gmaps = googlemaps.Client(key=os.getenv("GOOGLEMAPS_API_KEY"))
 
 
+def execute_nearby_places_query(*args, **kwargs):
+    acc = []
+
+    resp = gmaps.places_nearby(*args, **kwargs)
+    acc += resp["results"]
+    while "next_page_token" in resp:
+        resp = gmaps.places_nearby(*args, **kwargs, page_token=resp["next_page_token"])
+        acc += resp["results"]
+
+    return acc
+
+
 @extend_schema(
     parameters=[
         OpenApiParameter(name='lat', description='<description>',  required=True, type=float),
@@ -23,21 +35,20 @@ def get_nearby_restrooms(request) -> Response:
     long = request.GET.get("long")
 
     acc = []
+
     for type_code in ["library", "university", "cafe", "gas_station"]:
-        resp = gmaps.places_nearby(
+        acc += execute_nearby_places_query(
             location=(float(lat), float(long)),
             open_now=True,
             radius=1000,
             type=type_code
         )
-        acc += resp["results"]
-        while "next_page_token" in resp:
-            resp = gmaps.places_nearby(
-                location=(float(lat), float(long)),
-                open_now=True,
-                radius=1000,
-                type=type_code,
-                page_token=resp["next_page_token"]
-            )
-            acc += resp["results"]
+
+    acc += execute_nearby_places_query(
+        location=(float(lat), float(long)),
+        open_now=True,
+        rank_by="distance",
+        keyword="restroom"
+    )
+
     return Response(acc)
